@@ -1,22 +1,37 @@
-stage('Docker Build & Push') {
-    steps {
-        script {
-            echo "Building Docker image..."
+pipeline {
+    agent any
 
-            def dockerImage = "YOUR_DOCKERHUB_USERNAME/web-app-jira-demo:latest"
+    environment {
+        DOCKER_IMAGE = 'AngeMarie/my-web-app'     // Change to your Docker Hub repo
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'   // Jenkins credentials ID
+    }
 
-            // Login to Docker Hub
-            withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
+        }
 
-            // Build image
-            sh "docker build -t ${dockerImage} ."
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image using Jenkins Docker plugin
+                    dockerImage = docker.build("${DOCKER_IMAGE}:latest")
+                }
+            }
+        }
 
-            // Push image
-            sh "docker push ${dockerImage}"
-
-            echo "Docker image pushed successfully: ${dockerImage}"
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    // Authenticate + Push docker image
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
+                        dockerImage.push('latest')
+                    }
+                }
+            }
         }
     }
 }
